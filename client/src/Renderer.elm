@@ -48,18 +48,6 @@ type alias Keys =
     }
 
 
-
---
--- main : Program Never Model Msg
--- main =
---     Html.program
---         { init = init
---         , view = view
---         , subscriptions = subscriptions
---         , update = update
---         }
-
-
 eyeLevel : Float
 eyeLevel =
     2

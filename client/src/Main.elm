@@ -274,6 +274,11 @@ userView user =
         ]
 
 
+rendererView : Model -> Html Msg
+rendererView model =
+    Html.map RendererMsg (Renderer.view model.renderer)
+
+
 chatInterfaceView : Model -> Html Msg
 chatInterfaceView model =
     div []
@@ -281,6 +286,7 @@ chatInterfaceView model =
         , messageListView model
         , messageInputView model
         , userListView model
+        , rendererView model
         ]
 
 
