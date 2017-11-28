@@ -23,6 +23,23 @@ type alias Model =
     , keys : Keys
     , size : Window.Size
     , person : Person
+    , world : World
+    }
+
+
+type alias Shape =
+    { position : Vec3 }
+
+
+type alias User =
+    { name : String
+    , position : Vec3
+    }
+
+
+type alias World =
+    { users : List User
+    , shapes : List Shape
     }
 
 
@@ -53,9 +70,20 @@ eyeLevel =
     2
 
 
+initWorld : World
+initWorld =
+    { users = []
+    , shapes =
+        [ { position = vec3 0 0 0 }
+        , { position = vec3 0 0 0 }
+        ]
+    }
+
+
 model : Model
 model =
     { texture = Nothing
+    , world = initWorld
     , person = Person (vec3 0 eyeLevel -10) (vec3 0 0 0)
     , keys = Keys False False False False False
     , size = Window.Size 0 0
@@ -231,6 +259,16 @@ message =
         ++ "Arrows keys to move, space bar to jump."
 
 
+entity texture perspective object =
+    WebGL.entity
+        vertexShader
+        fragmentShader
+        object
+        { texture = texture
+        , perspective = perspective
+        }
+
+
 scene : Window.Size -> Person -> Texture -> List Entity
 scene { width, height } person texture =
     let
@@ -238,14 +276,12 @@ scene { width, height } person texture =
             Mat4.mul
                 (Mat4.makePerspective 45 (toFloat width / toFloat height) 0.01 100)
                 (Mat4.makeLookAt person.position (Vec3.add person.position Vec3.k) Vec3.j)
+
+        crateEntity =
+            entity texture perspective
     in
-        [ WebGL.entity
-            vertexShader
-            fragmentShader
-            crate
-            { texture = texture
-            , perspective = perspective
-            }
+        [ crateEntity crate
+        , crateEntity crate2
         ]
 
 
@@ -261,7 +297,32 @@ type alias Vertex =
 
 crate : Mesh Vertex
 crate =
-    [ ( 0, 0 ), ( 90, 0 ), ( 180, 0 ), ( 270, 0 ), ( 0, 90 ), ( 0, -90 ) ]
+    [ ( 0, 0 )
+    , ( 90, 0 )
+    , ( 180, 0 )
+    , ( 270, 0 )
+    , ( 0, 90 )
+    , ( 0, -90 )
+    ]
+        |> List.concatMap rotatedSquare
+        |> WebGL.triangles
+
+
+moveX dx ( x, y ) =
+    ( x + dx, y )
+
+
+crate2 : Mesh Vertex
+crate2 =
+    (List.map (moveX 1000)
+        [ ( 1000, 0 )
+        , ( 1090, 0 )
+        , ( 180, 0 )
+        , ( 270, 0 )
+        , ( 0, 90 )
+        , ( 0, -90 )
+        ]
+    )
         |> List.concatMap rotatedSquare
         |> WebGL.triangles
 

@@ -38,6 +38,13 @@ type alias ChatMessage =
     }
 
 
+type alias UserPosition =
+    { user : String
+    , x : Int
+    , y : Int
+    }
+
+
 type alias Model =
     { newMessage : String
     , messages : List ChatMessage
@@ -45,6 +52,7 @@ type alias Model =
     , users : List User
     , phxSocket : Maybe (Phoenix.Socket.Socket Msg)
     , phxPresences : PresenceState UserPresence
+    , userPositions : List UserPosition
     , renderer : Renderer.Model
     }
 
@@ -60,6 +68,7 @@ type Msg
     | HandlePresenceState JE.Value
     | HandlePresenceDiff JE.Value
     | RendererMsg Renderer.Msg
+    | ReceiveUserPositions JE.Value
 
 
 
@@ -74,6 +83,10 @@ initialModel =
     , users = []
     , phxSocket = Nothing
     , phxPresences = Dict.empty
+    , userPositions =
+        [ { x = 0, y = 0, user = "bob" }
+        , { x = 10, y = 0, user = "john" }
+        ]
     , renderer = Renderer.model
     }
 
@@ -88,6 +101,7 @@ initPhxSocket username =
     Phoenix.Socket.init (socketServer username)
         |> Phoenix.Socket.withDebug
         |> Phoenix.Socket.on "new:msg" "room:lobby" ReceiveChatMessage
+        |> Phoenix.Socket.on "user:position" "room:lobby" ReceiveUserPositions
         |> Phoenix.Socket.on "presence_state" "room:lobby" HandlePresenceState
         |> Phoenix.Socket.on "presence_diff" "room:lobby" HandlePresenceDiff
 
@@ -161,6 +175,15 @@ update msg model =
                 Err error ->
                     model ! []
 
+        ReceiveUserPositions raw ->
+            case JD.decodeValue userPositionsDecoder raw of
+                Ok userPositions ->
+                    { model | userPositions = userPositions }
+                        ! []
+
+                Err error ->
+                    model ! []
+
         SetUsername username ->
             { model | username = username } ! []
 
@@ -227,6 +250,20 @@ chatMessageDecoder =
             ]
         )
         (JD.field "body" JD.string)
+
+
+userPositionDecoder : JD.Decoder UserPosition
+userPositionDecoder =
+    JD.map3
+        UserPosition
+        (JD.field "user" JD.string)
+        (JD.field "x" JD.int)
+        (JD.field "y" JD.int)
+
+
+userPositionsDecoder : JD.Decoder (List UserPosition)
+userPositionsDecoder =
+    JD.list userPositionDecoder
 
 
 userPresenceDecoder : JD.Decoder UserPresence
@@ -331,4 +368,8 @@ subscriptions model =
 
 init : ( Model, Cmd Msg )
 init =
-    ( initialModel, Cmd.none )
+    let
+        ( initRenderer, rendererCmds ) =
+            Renderer.init
+    in
+        ( initialModel, Cmd.map RendererMsg rendererCmds )
