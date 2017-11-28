@@ -1,4 +1,4 @@
-module Renderer exposing (main)
+module Renderer exposing (Msg, Model, subscriptions, init, model, update, view)
 
 {-
    Try adding the ability to crouch or to land on top of the crate.
@@ -48,14 +48,16 @@ type alias Keys =
     }
 
 
-main : Program Never Model Msg
-main =
-    Html.program
-        { init = init
-        , view = view
-        , subscriptions = subscriptions
-        , update = update
-        }
+
+--
+-- main : Program Never Model Msg
+-- main =
+--     Html.program
+--         { init = init
+--         , view = view
+--         , subscriptions = subscriptions
+--         , update = update
+--         }
 
 
 eyeLevel : Float
@@ -63,13 +65,18 @@ eyeLevel =
     2
 
 
+model : Model
+model =
+    { texture = Nothing
+    , person = Person (vec3 0 eyeLevel -10) (vec3 0 0 0)
+    , keys = Keys False False False False False
+    , size = Window.Size 0 0
+    }
+
+
 init : ( Model, Cmd Msg )
 init =
-    ( { texture = Nothing
-      , person = Person (vec3 0 eyeLevel -10) (vec3 0 0 0)
-      , keys = Keys False False False False False
-      , size = Window.Size 0 0
-      }
+    ( model
     , Cmd.batch
         [ Task.attempt TextureLoaded (Texture.load "texture/wood-crate.jpg")
         , Task.perform Resize Window.size
@@ -77,8 +84,8 @@ init =
     )
 
 
-subscriptions : Model -> Sub Msg
-subscriptions _ =
+subscriptions : Sub Msg
+subscriptions =
     Sub.batch
         [ AnimationFrame.diffs Animate
         , Keyboard.downs (KeyChange True)
@@ -97,7 +104,11 @@ update action model =
             ( { model | keys = keyFunc on code model.keys }, Cmd.none )
 
         Resize size ->
-            ( { model | size = size }, Cmd.none )
+            let
+                _ =
+                    Debug.log "window size" size
+            in
+                ( { model | size = size }, Cmd.none )
 
         Animate dt ->
             ( { model

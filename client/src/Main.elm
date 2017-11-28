@@ -1,5 +1,6 @@
 module Main exposing (..)
 
+import AnimationFrame
 import Html as Html
 import Html exposing (..)
 import Html.Attributes exposing (value, placeholder, class)
@@ -12,6 +13,8 @@ import Json.Encode as JE
 import Json.Decode as JD
 import Debug
 import Dict exposing (Dict)
+import Window
+import Renderer
 
 
 -- Our model will track a list of messages and the text for our new message to
@@ -42,6 +45,7 @@ type alias Model =
     , users : List User
     , phxSocket : Maybe (Phoenix.Socket.Socket Msg)
     , phxPresences : PresenceState UserPresence
+    , renderer : Renderer.Model
     }
 
 
@@ -55,6 +59,11 @@ type Msg
     | ConnectSocket
     | HandlePresenceState JE.Value
     | HandlePresenceDiff JE.Value
+    | RendererMsg Renderer.Msg
+
+
+
+-- | RendererMessage Renderer.Msg
 
 
 initialModel : Model
@@ -65,6 +74,7 @@ initialModel =
     , users = []
     , phxSocket = Nothing
     , phxPresences = Dict.empty
+    , renderer = Renderer.model
     }
 
 
@@ -176,6 +186,16 @@ update msg model =
                             Debug.log "Error" error
                     in
                         model ! []
+
+        RendererMsg msg ->
+            let
+                _ =
+                    Debug.log "renderermsg" msg
+
+                ( renderer, rendererCmds ) =
+                    Renderer.update msg model.renderer
+            in
+                ( { model | renderer = renderer }, Cmd.map RendererMsg rendererCmds )
 
         HandlePresenceDiff raw ->
             case JD.decodeValue (presenceDiffDecoder userPresenceDecoder) raw of
@@ -297,7 +317,10 @@ subscriptions model =
             Sub.none
 
         Just phxSocket ->
-            Phoenix.Socket.listen phxSocket PhoenixMsg
+            Sub.batch
+                [ Phoenix.Socket.listen phxSocket PhoenixMsg
+                , Sub.map RendererMsg Renderer.subscriptions
+                ]
 
 
 init : ( Model, Cmd Msg )
