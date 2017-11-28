@@ -280,8 +280,8 @@ scene { width, height } person texture =
         crateEntity =
             entity texture perspective
     in
-        [ crateEntity crate
-        , crateEntity crate2
+        [ crateEntity (crate (vec3 0 0 0))
+        , crateEntity (crate (vec3 3 0 0))
         ]
 
 
@@ -295,39 +295,42 @@ type alias Vertex =
     }
 
 
-crate : Mesh Vertex
-crate =
-    [ ( 0, 0 )
-    , ( 90, 0 )
-    , ( 180, 0 )
-    , ( 270, 0 )
-    , ( 0, 90 )
-    , ( 0, -90 )
-    ]
+type alias Square =
+    List Triangle
+
+
+type alias Triangle =
+    ( Vertex, Vertex, Vertex )
+
+
+transformTriangle : (Vertex -> Vertex) -> Triangle -> Triangle
+transformTriangle transform ( a, b, c ) =
+    ( transform a, transform b, transform c )
+
+
+crateSquare : Square
+crateSquare =
+    [ ( 0, 0 ), ( 90, 0 ), ( 180, 0 ), ( 270, 0 ), ( 0, 90 ), ( 0, -90 ) ]
         |> List.concatMap rotatedSquare
+
+
+crate : Vec3 -> Mesh Vertex
+crate pos =
+    crateSquare
+        |> translatedSquare pos
         |> WebGL.triangles
 
 
-moveX dx ( x, y ) =
-    ( x + dx, y )
+translatedSquare : Vec3 -> Square -> Square
+translatedSquare delta triangles =
+    let
+        transform vertex =
+            { vertex | position = Vec3.add delta vertex.position }
+    in
+        List.map (transformTriangle transform) triangles
 
 
-crate2 : Mesh Vertex
-crate2 =
-    (List.map (moveX 1000)
-        [ ( 1000, 0 )
-        , ( 1090, 0 )
-        , ( 180, 0 )
-        , ( 270, 0 )
-        , ( 0, 90 )
-        , ( 0, -90 )
-        ]
-    )
-        |> List.concatMap rotatedSquare
-        |> WebGL.triangles
-
-
-rotatedSquare : ( Float, Float ) -> List ( Vertex, Vertex, Vertex )
+rotatedSquare : ( Float, Float ) -> Square
 rotatedSquare ( angleXZ, angleYZ ) =
     let
         transformMat =
@@ -337,17 +340,13 @@ rotatedSquare ( angleXZ, angleYZ ) =
 
         transform vertex =
             { vertex
-                | position =
-                    Mat4.transform transformMat vertex.position
+                | position = (Mat4.transform transformMat vertex.position)
             }
-
-        transformTriangle ( a, b, c ) =
-            ( transform a, transform b, transform c )
     in
-        List.map transformTriangle square
+        List.map (transformTriangle transform) square
 
 
-square : List ( Vertex, Vertex, Vertex )
+square : Square
 square =
     let
         topLeft =
